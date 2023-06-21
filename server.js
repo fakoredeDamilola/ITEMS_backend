@@ -1,0 +1,43 @@
+const express = require("express");
+const mysql = require("mysql");
+const staffRouter = require("./routes/staffRoutes");
+const studentRouter = require("./routes/studentRoutes");
+const {studentConnection, staffConnection} = require("./db");
+require("dotenv").config();
+
+const app = express();
+
+app.use(express.urlencoded({extended: true}));
+app.use(express.json());
+
+// create student DB
+app.get("/createstudentdb", (req, res) => {
+  let sql = "CREATE DATABASE ttdataba_student";
+  studentConnection.query(sql, (err, result) => {
+    if (err) {
+      throw err;
+    } else {
+      console.log({result});
+      res.send(" student daataabase created");
+    }
+  });
+});
+
+// // create staff DB
+app.get("/createstaffdb", (req, res) => {
+  let sql = "CREATE DATABASE ttdataba_staff";
+  staffConnection.query(sql, (err, result) => {
+    if (err) {
+      throw err;
+    } else {
+      console.log({result});
+      res.send("staff daataabase created");
+    }
+  });
+});
+
+app.use("/api/student", studentRouter);
+app.use("/api/staff", staffRouter);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, console.log(`Sever started on port ${PORT}`));
