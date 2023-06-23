@@ -61,25 +61,37 @@ const createAnyStudentTable = asyncHandler(async (req, res) => {
 
 const getStudentTable = asyncHandler(async (req, res) => {
   try {
-    const {tableName, columns, conditions} = req.body;
-    console.log({tableName, columns});
+    // const {tableName, columns, conditions} = req.body;
+    const {queryData} = req.query;
+    // console.log({tableName, columns});
     // let createTableQuery = `SELECT  ${columns.join(", ")} FROM ${tableName}`;
     // if (conditions) {
     //   createTableQuery = `SELECT  ${columns.join(
     //     ", "
-    //   )} FROM ${tableName} WHERE ${conditions}`;
+    //   )} FROM ${tableName} WHERE '${conditions}'`;
     // }
-    let createTableQuery =
-      "SELECT u.*, o.countryName FROM student u JOIN countries o ON u.countryID = o.countryID";
+    console.log({queryData});
+    // let queryData =
+    //   "SELECT u.*, o.countryName FROM student u JOIN countries o ON u.countryID = o.countryID";
 
-    console.log({createTableQuery});
-    studentConnection.query(createTableQuery, (err, result) => {
-      if (err) throw err;
-      console.log(result);
-      res.send(result);
+    const results = await new Promise((resolve, reject) => {
+      studentConnection.query(queryData, (err, result) => {
+        if (err) throw err;
+        else {
+          resolve(result);
+        }
+      });
     });
+    console.log({results});
+    if (results.length === 0) {
+      res.json("No data found");
+    } else {
+      console.log({results}, "ues");
+      res.json({results});
+    }
   } catch (e) {
     console.log({e});
+    res.json("No data found");
   }
 });
 const insertDataIntoStudentTable = asyncHandler(async (req, res) => {
