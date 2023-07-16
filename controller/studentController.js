@@ -210,24 +210,24 @@ const createDataBase = asyncHandler(async (req, res) => {
 });
 const getAllUsers = asyncHandler(async (req, res) => {
   try {
-    const decoded = checkToken(req.headers.authorization.split(" ")[1]);
-    console.log({decoded});
-    if (decoded.email) {
-      const user = await new Promise((resolve, reject) => {
-        studentConnection.query(
-          `SELECT role, email, name FROM users`,
-          (error, results) => {
-            if (error) {
-              console.error("Error retrieving data:", error);
-              return;
-            }
-            resolve(results);
+    // const decoded = checkToken(req.headers.authorization.split(" ")[1]);
+    // console.log({decoded});
+    // if (decoded.email) {
+    const user = await new Promise((resolve, reject) => {
+      studentConnection.query(
+        `SELECT role, email, name FROM users`,
+        (error, results) => {
+          if (error) {
+            console.error("Error retrieving data:", error);
+            return;
           }
-        );
-      });
-      console.log({user});
-      res.json({user, status: true});
-    }
+          resolve(results);
+        }
+      );
+    });
+    console.log({user});
+    res.json({user, status: true});
+    // }
   } catch (e) {
     console.log({e});
   }
