@@ -11,6 +11,8 @@ const {
   getStudentInfo,
   createDataBase,
   getStudentTable,
+  getAllUsers,
+  DeleteUser,
 } = require("../controller/studentController");
 
 const router = express.Router();
@@ -24,9 +26,12 @@ router.route("/update/any/table").put(alterDataInStudentTable);
 router.route("/create/user/table").post(createUserTable);
 router.route("/signin").post(signIn);
 router.route("/create").post(createDataBase);
-
+router.route("/create/admin").post(addANewAdminPrivilege);
 // GET ROUTES
 router.route("/query/table").get(getStudentInfo);
+router.route("/users").get(getAllUsers);
+// DELETE ROUTES
+router.route("/delete/user").delete(DeleteUser);
 
 // GET ROUTES
 

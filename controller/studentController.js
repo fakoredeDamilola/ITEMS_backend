@@ -61,18 +61,8 @@ const createAnyStudentTable = asyncHandler(async (req, res) => {
 
 const getStudentTable = asyncHandler(async (req, res) => {
   try {
-    // const {tableName, columns, conditions} = req.body;
     const {queryData} = req.query;
-    // console.log({tableName, columns});
-    // let createTableQuery = `SELECT  ${columns.join(", ")} FROM ${tableName}`;
-    // if (conditions) {
-    //   createTableQuery = `SELECT  ${columns.join(
-    //     ", "
-    //   )} FROM ${tableName} WHERE '${conditions}'`;
-    // }
     console.log({queryData});
-    // let queryData =
-    //   "SELECT u.*, o.countryName FROM student u JOIN countries o ON u.countryID = o.countryID";
 
     const results = await new Promise((resolve, reject) => {
       studentConnection.query(queryData, (err, result) => {
@@ -159,19 +149,48 @@ const createUserTable = asyncHandler(async (req, res) => {
 });
 const addANewAdminPrivilege = asyncHandler(async (req, res) => {
   try {
-    const {email, password, role, description} = req.body;
+    const {email, password, role, name} = req.body;
     const hashedPassword = await hashPassword(password);
-    console.log({email, password, role, description});
+    console.log({email, password, role});
     let newRole = roles[role];
-    console.log({newRole, hashedPassword});
-    if (newRole === role) {
-      const AddNewAdmin = `INSERT INTO users (email, password, role, description) VALUES (?, ?, ?, ?)`;
-      const values = [email, hashedPassword, role, description ?? ""];
-      studentConnection.query(AddNewAdmin, values, (err, result) => {
-        if (err) throw err;
-        console.log(result);
-        res.send(`created a new user `);
-      });
+    const user = await new Promise((resolve, reject) => {
+      studentConnection.query(
+        `SELECT * FROM users WHERE email='${email}'`,
+        (error, results) => {
+          if (error) {
+            console.error("Error retrieving data:", error);
+            return;
+          }
+          console.log({results});
+          resolve(results);
+        }
+      );
+    });
+    if (user.length > 0 && user[0].email) {
+      res.send("username/password already exists");
+    } else {
+      if (newRole === role) {
+        const AddNewAdmin = `INSERT INTO users (email, password, role, name) VALUES (?, ?, ?, ?)`;
+        const values = [email, hashedPassword, role, name ?? ""];
+        await new Promise((resolve, reject) => {
+          studentConnection.query(AddNewAdmin, values, (err, result) => {
+            if (err) throw err;
+            else {
+              resolve(result);
+            }
+          });
+        });
+        const user = await new Promise((resolve, reject) => {
+          studentConnection.query(`SELECT * FROM users`, (error, results) => {
+            if (error) {
+              console.error("Error retrieving data:", error);
+              return;
+            }
+            resolve(results);
+          });
+        });
+        res.json({user, status: true});
+      }
     }
   } catch (e) {
     console.log({e});
@@ -188,6 +207,30 @@ const createDataBase = asyncHandler(async (req, res) => {
       res.send("daataabase created");
     }
   });
+});
+const getAllUsers = asyncHandler(async (req, res) => {
+  try {
+    const decoded = checkToken(req.headers.authorization.split(" ")[1]);
+    console.log({decoded});
+    if (decoded.email) {
+      const user = await new Promise((resolve, reject) => {
+        studentConnection.query(
+          `SELECT role, email, name FROM users`,
+          (error, results) => {
+            if (error) {
+              console.error("Error retrieving data:", error);
+              return;
+            }
+            resolve(results);
+          }
+        );
+      });
+      console.log({user});
+      res.json({user, status: true});
+    }
+  } catch (e) {
+    console.log({e});
+  }
 });
 const checkCredentials = async (email, password) => {
   try {
@@ -208,15 +251,13 @@ const checkCredentials = async (email, password) => {
     });
 
     if (results.length === 0) {
-      return {role: "", id: ""};
+      return {role: "", email: ""};
     } else {
       const passwordCheck = await matchPassword(password, results[0].password);
-      console.log({passwordCheck});
       if (passwordCheck) {
-        console.log({results});
         return results[0];
       } else {
-        return {role: "", id: ""};
+        return {role: "", email: ""};
       }
     }
   } catch (err) {
@@ -229,11 +270,9 @@ const signIn = asyncHandler(async (req, res) => {
   try {
     const {email, password} = req.body;
     const results = await checkCredentials(email, password);
-    console.log({results});
-    if (results.role && results.id) {
-      const token = generateToken(email, results.role, results.id);
-      console.log({token});
-      res.json({token});
+    if (results.role && results.name) {
+      const token = generateToken(email, results.role, results.name);
+      res.json({token, status: true});
     } else {
       res.json("invalid username or password");
     }
@@ -245,11 +284,8 @@ const signIn = asyncHandler(async (req, res) => {
 const getStudentInfo = asyncHandler(async (req, res) => {
   try {
     const user = checkToken(req.headers.authorization.split(" ")[1]);
-    console.log({user});
     if (user) {
-      console.log({user});
       const userRoles = rolesRelationship[user.role];
-      console.log({userRoles});
       if (
         userRoles.restrictions.length === 0 &&
         userRoles.access.length === 0
@@ -264,10 +300,31 @@ const getStudentInfo = asyncHandler(async (req, res) => {
   }
 });
 
+const DeleteUser = asyncHandler(async (req, res) => {
+  try {
+    const {email} = req.body;
+    console.log({email}, req.body);
+    studentConnection.query(
+      "DELETE FROM users WHERE email = ?",
+      [email],
+      (error, results) => {
+        if (error) {
+          console.error("Error deleting user:", error);
+          return;
+        }
+        res.json({status: true, message: "user deleted successfully"});
+      }
+    );
+  } catch (e) {
+    console.log({e});
+  }
+});
+
 module.exports = {
   createStudentTable,
   createAddCourseHasRegisteredCoursed,
   createAnyStudentTable,
+  DeleteUser,
   insertDataIntoStudentTable,
   alterDataInStudentTable,
   createUserTable,
@@ -276,4 +333,5 @@ module.exports = {
   getStudentInfo,
   createDataBase,
   getStudentTable,
+  getAllUsers,
 };
