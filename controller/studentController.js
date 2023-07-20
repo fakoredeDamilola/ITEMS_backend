@@ -1,7 +1,12 @@
 const asyncHandler = require("express-async-handler");
 const {studentConnection, staffConnection} = require("../db");
 const {roles} = require("../utils/utilData");
-const {hashPassword, matchPassword} = require("../utils/utilFunc");
+const {
+  hashPassword,
+  matchPassword,
+  getTotalStudentsByStudyStatus,
+  groupStudentsByNationality,
+} = require("../utils/utilFunc");
 const {rolesRelationship} = require("../utils/roles");
 const {generateToken, checkToken} = require("../middleware/authentication");
 
@@ -210,24 +215,47 @@ const createDataBase = asyncHandler(async (req, res) => {
 });
 const getAllUsers = asyncHandler(async (req, res) => {
   try {
-    // const decoded = checkToken(req.headers.authorization.split(" ")[1]);
-    // console.log({decoded});
-    // if (decoded.email) {
-    const user = await new Promise((resolve, reject) => {
-      studentConnection.query(
-        `SELECT role, email, name FROM users`,
-        (error, results) => {
-          if (error) {
-            console.error("Error retrieving data:", error);
-            return;
+    const decoded = checkToken(req.headers.authorization.split(" ")[1]);
+    if (decoded.email) {
+      const user = await new Promise((resolve, reject) => {
+        studentConnection.query(
+          `SELECT role, email, name FROM users`,
+          (error, results) => {
+            if (error) {
+              console.error("Error retrieving data:", error);
+              return;
+            }
+            resolve(results);
           }
-          resolve(results);
-        }
-      );
-    });
-    console.log({user});
-    res.json({user, status: true});
-    // }
+        );
+      });
+      console.log({user});
+      res.json({user, status: true});
+    }
+  } catch (e) {
+    console.log({e});
+  }
+});
+const getAllStudents = asyncHandler(async (req, res) => {
+  try {
+    const decoded = checkToken(req.headers.authorization.split(" ")[1]);
+    if (decoded.email) {
+      const students = await new Promise((resolve, reject) => {
+        studentConnection.query(
+          `SELECT studyStatus,studyLevel,nationality FROM student`,
+          (error, results) => {
+            if (error) {
+              console.error("Error retrieving data:", error);
+              return;
+            }
+            resolve(results);
+          }
+        );
+      });
+      const totalStudents = getTotalStudentsByStudyStatus(students);
+      const nationalStudents = groupStudentsByNationality(students);
+      res.json({totalStudents, nationalStudents, status: true});
+    }
   } catch (e) {
     console.log({e});
   }
@@ -335,4 +363,5 @@ module.exports = {
   createDataBase,
   getStudentTable,
   getAllUsers,
+  getAllStudents,
 };

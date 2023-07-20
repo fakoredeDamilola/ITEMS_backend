@@ -11,4 +11,40 @@ const matchPassword = async function (enteredPassword, hashedPassword) {
   return await bcrypt.compare(enteredPassword, hashedPassword);
 };
 
-module.exports = {hashPassword, matchPassword};
+// Function to get the total student count based on studyStatus
+function getTotalStudentsByStudyStatus(students) {
+  const studyStatusCount = {};
+
+  students.forEach((student) => {
+    const studyStatus = student.studyStatus;
+    if (studyStatusCount.hasOwnProperty(studyStatus)) {
+      studyStatusCount[studyStatus]++;
+    } else {
+      studyStatusCount[studyStatus] = 1;
+    }
+  });
+
+  return studyStatusCount;
+}
+
+function groupStudentsByNationality(students) {
+  const studentsByNationality = {};
+
+  students.forEach((student) => {
+    const nationality = student.nationality;
+    if (studentsByNationality.hasOwnProperty(nationality)) {
+      studentsByNationality[nationality]++;
+    } else {
+      studentsByNationality[nationality] = 1;
+    }
+  });
+
+  return studentsByNationality;
+}
+
+module.exports = {
+  hashPassword,
+  matchPassword,
+  getTotalStudentsByStudyStatus,
+  groupStudentsByNationality,
+};
