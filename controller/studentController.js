@@ -269,6 +269,7 @@ const checkCredentials = async (email, password) => {
 const signIn = asyncHandler(async (req, res) => {
   try {
     const {email, password} = req.body;
+    console.log({email, password});
     const results = await checkCredentials(email, password);
     if (results.role && results.name) {
       const token = generateToken(email, results.role, results.name);

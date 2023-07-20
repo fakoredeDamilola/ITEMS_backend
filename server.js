@@ -27,6 +27,9 @@ app.use(
 );
 
 // create student DB
+app.get("/", (req, res) => {
+  res.send("<h1>it is working</h1>");
+});
 app.get("/createstudentdb", (req, res) => {
   let sql = "CREATE DATABASE ttdataba_student";
   studentConnection.query(sql, (err, result) => {
