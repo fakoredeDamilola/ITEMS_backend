@@ -66,6 +66,7 @@ const createAnyStudentTable = asyncHandler(async (req, res) => {
 
 const getStudentTable = asyncHandler(async (req, res) => {
   try {
+    console.log("hello");
     const {queryData} = req.query;
     console.log({queryData});
 
@@ -74,6 +75,56 @@ const getStudentTable = asyncHandler(async (req, res) => {
         if (err) throw err;
         else {
           resolve(result);
+        }
+      });
+    });
+    console.log({results});
+    if (results.length === 0) {
+      res.json({results: []});
+    } else {
+      console.log({results}, "ues");
+      res.json({results});
+    }
+  } catch (e) {
+    console.log({e});
+    res.json({results: []});
+  }
+});
+const getSummaryTable = asyncHandler(async (req, res) => {
+  try {
+    console.log("hello");
+
+    const results = await new Promise((resolve, reject) => {
+      studentConnection.query(`SELECT * FROM student`, (err, result) => {
+        console.log({result});
+        if (err) throw err;
+        else {
+          // resolve(result);
+          const graduated = result.filter(
+            (res) => res.studyStatus.toLowerCase() === "graduated"
+          );
+
+          const dlc = result.filter(
+            (res) => res.studyStatus.toLowerCase() === "part-time"
+          );
+          const pg = result.filter(
+            (res) => res.studyStatus.toLowerCase() === "post-graduate"
+          );
+          const undergraduate = result.filter(
+            (res) =>
+              res.studyStatus.toLowerCase() === "studying" ||
+              res.studyStatus.toLowerCase() === "full-time"
+          );
+          const nationalStudents = groupStudentsByNationality(result);
+          console.log({nationalStudents});
+          resolve({
+            graduated,
+            students: result,
+            dlc,
+            pg,
+            undergraduate,
+            nationalStudents,
+          });
         }
       });
     });
@@ -172,7 +223,7 @@ const addANewAdminPrivilege = asyncHandler(async (req, res) => {
       );
     });
     if (user.length > 0 && user[0].email) {
-      res.send("username/password already exists");
+      res.json({message: "username/password already exists", status: false});
     } else {
       if (newRole === role) {
         const AddNewAdmin = `INSERT INTO users (email, password, role, name) VALUES (?, ?, ?, ?)`;
@@ -237,25 +288,62 @@ const getAllUsers = asyncHandler(async (req, res) => {
   }
 });
 const getAllStudents = asyncHandler(async (req, res) => {
+  console.log("getting");
+  const query = `
+  SELECT
+      d.departmentID,
+      d.departmentName,
+      s.studentID,
+      s.studentFirstName,
+      s.studentLastSurname
+  FROM
+      department d
+  LEFT JOIN
+      student s ON d.departmentID = s.departmentID
+  ORDER BY
+      d.departmentID, s.studentID;
+`;
   try {
-    const decoded = checkToken(req.headers.authorization.split(" ")[1]);
-    if (decoded.email) {
-      const students = await new Promise((resolve, reject) => {
-        studentConnection.query(
-          `SELECT studyStatus,studyLevel,nationality FROM student`,
-          (error, results) => {
-            if (error) {
-              console.error("Error retrieving data:", error);
-              return;
-            }
-            resolve(results);
-          }
-        );
+    // const decoded = checkToken(req.headers.authorization.split(" ")[1]);
+    // if (decoded.email) {
+    studentConnection.query(query, (err, results) => {
+      if (err) {
+        console.error("Error executing query:", err);
+        // connection.end();
+        return;
+      }
+      const departmentsWithStudents = {};
+
+      results.forEach((row) => {
+        const {
+          departmentID,
+          departmentName,
+          studentID,
+          studentFirstName,
+          studentLastName,
+        } = row;
+
+        if (!departmentsWithStudents[departmentName]) {
+          departmentsWithStudents[departmentName] = {
+            departmentID: departmentID,
+            students: [],
+          };
+        }
+
+        if (studentID) {
+          departmentsWithStudents[departmentName].students.push({
+            studentID: studentID,
+            studentFirstName: studentFirstName,
+            studentLastName: studentLastName,
+          });
+        }
       });
-      const totalStudents = getTotalStudentsByStudyStatus(students);
-      const nationalStudents = groupStudentsByNationality(students);
-      res.json({totalStudents, nationalStudents, status: true});
-    }
+      // Organize the data into an objec
+      console.log({departmentsWithStudents});
+      res.json({studentDeparment: departmentsWithStudents, status: true});
+    });
+
+    // }
   } catch (e) {
     console.log({e});
   }
@@ -301,7 +389,7 @@ const signIn = asyncHandler(async (req, res) => {
     const results = await checkCredentials(email, password);
     if (results.role && results.name) {
       const token = generateToken(email, results.role, results.name);
-      res.json({token, status: true});
+      res.json({token, status: true, role: results.role, name: results.name});
     } else {
       res.json("invalid username or password");
     }
@@ -348,6 +436,59 @@ const DeleteUser = asyncHandler(async (req, res) => {
     console.log({e});
   }
 });
+async function fetchDataFromTable(tableName) {
+  try {
+    const rows = await studentConnection.execute(`SELECT * FROM ${tableName}`);
+    console.log({rows});
+    return rows;
+  } catch (error) {
+    throw error;
+  }
+}
+
+const getInitialData = asyncHandler(async (req, res) => {
+  try {
+    const decoded = checkToken(req.headers.authorization.split(" ")[1]);
+    if (decoded.email && decoded.role === roles.superrole) {
+      // const department = await fetchDataFromTable("department_odd");
+      // const faculty = await fetchDataFromTable("faculty");
+      // const state = await fetchDataFromTable("state");
+      // const countries = await fetchDataFromTable("countries");
+      // console.log({department, faculty, state, countries});
+      var sql =
+        "SELECT * FROM department_odd; SELECT * FROM faculty; SELECT * FROM state; SELECT * FROM countries;";
+      studentConnection.query(sql, [1, 2], (error, results) => {
+        if (error) {
+          console.error("error fetching department:", error);
+          return;
+        }
+        console.log(results[1]);
+        res.json({
+          departments: results[0].map((res) => ({
+            id: res.departmentID,
+            name: res.departmentName,
+          })),
+          countries: results[3].map((res) => ({
+            id: res.countryID,
+            name: res.countryName,
+          })),
+          faculty: results[1].map((res) => ({
+            id: res.facultyID,
+            name: res.facultyName,
+          })),
+          states: results[2].map((res) => ({
+            id: res.state_id,
+            name: res.state,
+          })),
+          status: true,
+          message: "user deleted successfully",
+        });
+      });
+    }
+  } catch (e) {
+    console.log({e});
+  }
+});
 
 module.exports = {
   createStudentTable,
@@ -364,4 +505,6 @@ module.exports = {
   getStudentTable,
   getAllUsers,
   getAllStudents,
+  getSummaryTable,
+  getInitialData,
 };

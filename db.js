@@ -10,6 +10,7 @@ const studentConnection = mysql.createConnection({
   port: process.env.DB_PORT,
   timezone: "utc",
   database: process.env.DB_DATABASE,
+  multipleStatements: true,
 });
 
 // create connection
