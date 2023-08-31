@@ -16,6 +16,7 @@ const {
   getAllStudents,
   getSummaryTable,
   getInitialData,
+  getUserData,
 } = require("../controller/studentController");
 
 const router = express.Router();
@@ -34,6 +35,7 @@ router.route("/create/admin").post(addANewAdminPrivilege);
 // GET ROUTES
 router.route("/query/table").get(getStudentInfo);
 router.route("/query/initial").get(getInitialData);
+router.route("/query/user").get(getUserData);
 router.route("/users").get(getAllUsers);
 router.route("/students").get(getAllStudents);
 // DELETE ROUTES

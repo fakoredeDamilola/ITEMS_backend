@@ -10,8 +10,8 @@ const checkToken = (token) => {
     throw new Error(error);
   }
 };
-const generateToken = (email, role, name) => {
-  return jwt.sign({email, role, name}, process.env.JWT_SECRETE, {
+const generateToken = (email, role, accessLevel, name) => {
+  return jwt.sign({email, role, accessLevel, name}, process.env.JWT_SECRETE, {
     expiresIn: "30d",
   });
 };

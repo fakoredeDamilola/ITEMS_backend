@@ -66,7 +66,6 @@ const createAnyStudentTable = asyncHandler(async (req, res) => {
 
 const getStudentTable = asyncHandler(async (req, res) => {
   try {
-    console.log("hello");
     const {queryData} = req.query;
     console.log({queryData});
 
@@ -205,9 +204,9 @@ const createUserTable = asyncHandler(async (req, res) => {
 });
 const addANewAdminPrivilege = asyncHandler(async (req, res) => {
   try {
-    const {email, password, role, name} = req.body;
+    const {email, password, role, name, status, accessLevel} = req.body;
     const hashedPassword = await hashPassword(password);
-    console.log({email, password, role});
+    console.log({email, password, role, status, accessLevel});
     let newRole = roles[role];
     const user = await new Promise((resolve, reject) => {
       studentConnection.query(
@@ -222,31 +221,41 @@ const addANewAdminPrivilege = asyncHandler(async (req, res) => {
         }
       );
     });
+    console.log({user});
     if (user.length > 0 && user[0].email) {
       res.json({message: "username/password already exists", status: false});
     } else {
-      if (newRole === role) {
-        const AddNewAdmin = `INSERT INTO users (email, password, role, name) VALUES (?, ?, ?, ?)`;
-        const values = [email, hashedPassword, role, name ?? ""];
-        await new Promise((resolve, reject) => {
-          studentConnection.query(AddNewAdmin, values, (err, result) => {
-            if (err) throw err;
-            else {
-              resolve(result);
-            }
-          });
+      console.log("we are here");
+
+      console.log("here again");
+      const AddNewAdmin = `INSERT INTO users (email, password, role, name,status,accessLevel) VALUES (?, ?, ?, ?, ?, ?)`;
+      const values = [
+        email,
+        hashedPassword,
+        role,
+        name ?? "",
+        status,
+        accessLevel,
+      ];
+      await new Promise((resolve, reject) => {
+        studentConnection.query(AddNewAdmin, values, (err, result) => {
+          if (err) throw err;
+          else {
+            resolve(result);
+          }
         });
-        const user = await new Promise((resolve, reject) => {
-          studentConnection.query(`SELECT * FROM users`, (error, results) => {
-            if (error) {
-              console.error("Error retrieving data:", error);
-              return;
-            }
-            resolve(results);
-          });
+      });
+      const user = await new Promise((resolve, reject) => {
+        studentConnection.query(`SELECT * FROM users`, (error, results) => {
+          if (error) {
+            console.error("Error retrieving data:", error);
+            return;
+          }
+          resolve(results);
         });
-        res.json({user, status: true});
-      }
+      });
+      console.log({user});
+      res.json({user, status: true});
     }
   } catch (e) {
     console.log({e});
@@ -385,11 +394,22 @@ const checkCredentials = async (email, password) => {
 const signIn = asyncHandler(async (req, res) => {
   try {
     const {email, password} = req.body;
-    console.log({email, password});
     const results = await checkCredentials(email, password);
     if (results.role && results.name) {
-      const token = generateToken(email, results.role, results.name);
-      res.json({token, status: true, role: results.role, name: results.name});
+      const token = generateToken(
+        email,
+        results.role,
+        results.accessLevel ?? "all",
+        results.name
+      );
+      res.json({
+        token,
+        status: true,
+        role: results.role,
+        name: results.name,
+        accessLevel: results.accessLevel,
+        status: results.status,
+      });
     } else {
       res.json("invalid username or password");
     }
@@ -449,12 +469,9 @@ async function fetchDataFromTable(tableName) {
 const getInitialData = asyncHandler(async (req, res) => {
   try {
     const decoded = checkToken(req.headers.authorization.split(" ")[1]);
-    if (decoded.email && decoded.role === roles.superrole) {
-      // const department = await fetchDataFromTable("department_odd");
-      // const faculty = await fetchDataFromTable("faculty");
-      // const state = await fetchDataFromTable("state");
-      // const countries = await fetchDataFromTable("countries");
-      // console.log({department, faculty, state, countries});
+    console.log({decoded});
+    // && decoded.role === roles.superrole
+    if (decoded.email) {
       var sql =
         "SELECT * FROM department_odd; SELECT * FROM faculty; SELECT * FROM state; SELECT * FROM countries;";
       studentConnection.query(sql, [1, 2], (error, results) => {
@@ -462,26 +479,108 @@ const getInitialData = asyncHandler(async (req, res) => {
           console.error("error fetching department:", error);
           return;
         }
-        console.log(results[1]);
+        if (decoded.role === roles.deans) {
+          console.log(results[1]);
+          const faculty = results[1].find(
+            (res) =>
+              res.facultyName.toLowerCase() ===
+              decoded.accessLevel.toLowerCase()
+          );
+          console.log(
+            {faculty},
+            results[0].filter((res) => res.facultyID === faculty.facultyID)
+            // "eieoeooe"
+          );
+          res.json({
+            departments: results[0]
+              .filter((res) => res.facultyID === faculty.facultyID)
+              .map((res) => ({
+                id: res.departmentID,
+                name: res.departmentName,
+              })),
+            countries: results[3].map((res) => ({
+              id: res.countryID,
+              name: res.countryName,
+            })),
+            faculty: results[1].map((res) => ({
+              id: res.facultyID,
+              name: res.facultyName,
+            })),
+            states: results[2].map((res) => ({
+              id: res.state_id,
+              name: res.state,
+            })),
+            status: true,
+            message: "user deleted successfully",
+          });
+        } else if (decoded.role === roles.hod) {
+          res.json({
+            countries: results[3].map((res) => ({
+              id: res.countryID,
+              name: res.countryName,
+            })),
+            faculty: results[1].map((res) => ({
+              id: res.facultyID,
+              name: res.facultyName,
+            })),
+            states: results[2].map((res) => ({
+              id: res.state_id,
+              name: res.state,
+            })),
+            status: true,
+            message: "OK",
+          });
+        } else {
+          res.json({
+            departments: results[0].map((res) => ({
+              id: res.departmentID,
+              name: res.departmentName,
+            })),
+            countries: results[3].map((res) => ({
+              id: res.countryID,
+              name: res.countryName,
+            })),
+            faculty: results[1].map((res) => ({
+              id: res.facultyID,
+              name: res.facultyName,
+            })),
+            states: results[2].map((res) => ({
+              id: res.state_id,
+              name: res.state,
+            })),
+            status: true,
+            message: "user deleted successfully",
+          });
+        }
+      });
+    }
+  } catch (e) {
+    console.log({e});
+  }
+});
+const getUserData = asyncHandler(async (req, res) => {
+  try {
+    const decoded = checkToken(req.headers.authorization.split(" ")[1]);
+    console.log({decoded});
+    // && decoded.role === roles.superrole
+    if (decoded.email) {
+      var sql = "SELECT * FROM department_odd; SELECT * FROM faculty;";
+      studentConnection.query(sql, [1, 2], (error, results) => {
+        if (error) {
+          console.error("error fetching department:", error);
+          return;
+        }
+
         res.json({
           departments: results[0].map((res) => ({
             id: res.departmentID,
             name: res.departmentName,
           })),
-          countries: results[3].map((res) => ({
-            id: res.countryID,
-            name: res.countryName,
-          })),
           faculty: results[1].map((res) => ({
             id: res.facultyID,
             name: res.facultyName,
           })),
-          states: results[2].map((res) => ({
-            id: res.state_id,
-            name: res.state,
-          })),
           status: true,
-          message: "user deleted successfully",
         });
       });
     }
@@ -506,5 +605,6 @@ module.exports = {
   getAllUsers,
   getAllStudents,
   getSummaryTable,
+  getUserData,
   getInitialData,
 };

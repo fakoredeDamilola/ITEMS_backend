@@ -1,10 +1,8 @@
 const roles = {
-    superrole:'superrole',
-     principal:'principal',
-     director:'director', 
-     deans:'deans', 
-     hod:'hod'
-}
-
-
-module.exports = {roles}
+  superrole: "Superrole",
+  principal: "Principal",
+  director: "Director",
+  deans: "Deans",
+  hod: "HOD",
+};
+module.exports = {roles};
