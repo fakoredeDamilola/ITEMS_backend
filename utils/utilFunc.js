@@ -31,7 +31,7 @@ function groupStudentsByNationality(students) {
   const studentsByNationality = {};
 
   students.forEach((student) => {
-    const nationality = student.nationality;
+    const nationality = student.country;
     if (studentsByNationality.hasOwnProperty(nationality)) {
       studentsByNationality[nationality]++;
     } else {
